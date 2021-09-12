@@ -1,5 +1,15 @@
 import { User } from "../../../src/models";
 import { isMobile } from "../../support/utils";
+import Actor from "../../infra/Actor";
+import Unauthenticated from "../../infra/Unauthenticated";
+import Visit from "../../infra/Visit";
+import Redirected from "../../infra/Redirected";
+import SignIn from "../../infra/SignIn";
+import Authenticated from "../../infra/Authenticated";
+import Click from "../../infra/Click";
+import Ensure from "../../infra/Ensure";
+import Fill from "../../infra/Fill";
+import SignUpForm from "../../infra/SignUpForm";
 
 const apiGraphQL = `${Cypress.env("apiUrl")}/graphql`;
 
@@ -18,33 +28,42 @@ describe("User Sign-up and Login", function () {
   });
 
   it("should redirect unauthenticated user to signin page", function () {
-    cy.visit("/personal");
-    cy.location("pathname").should("equal", "/signin");
-    cy.visualSnapshot("Redirect to SignIn");
+    new Actor(cy)
+      .named("Alperen")
+      .is(new Unauthenticated())
+      .attemptsTo(new Visit().to("personal page"))
+      .should(new Redirected().to("sign in page"));
   });
 
   it("should redirect to the home page after login", function () {
-    cy.database("find", "users").then((user: User) => {
-      cy.login(user.username, "s3cret", { rememberUser: true });
-    });
-    cy.location("pathname").should("equal", "/");
+    new Actor(cy)
+      .named("Edgar Johns")
+      .is(new Unauthenticated())
+      .attemptsTo(
+        new SignIn().withCredentials({
+          username: "Katharina_Bernier",
+          password: "s3cret",
+        })
+      )
+      .should(new Redirected().to("home page"));
   });
 
   it("should remember a user for 30 days after login", function () {
-    cy.database("find", "users").then((user: User) => {
-      cy.login(user.username, "s3cret", { rememberUser: true });
-    });
-
-    // Verify Session Cookie
-    cy.getCookie("connect.sid").should("have.property", "expiry");
+    // new Actor(cy)
+    //   .named("Edgar Johns")
+    //   .is(new Unauthenticated())
+    //   .attemptsTo(new SignIn().withAnyCredentials())
+    //   .should(new HasTo().ACookie().ThatNamed("expiry"));
 
     // Logout User
-    if (isMobile()) {
-      cy.getBySel("sidenav-toggle").click();
-    }
-    cy.getBySel("sidenav-signout").click();
-    cy.location("pathname").should("eq", "/signin");
-    cy.visualSnapshot("Redirect to SignIn");
+    new Actor(cy)
+      .named("Edgar Johns")
+      .is(new Authenticated().withAnyCredentials())
+      .attemptsTo(
+        new Ensure().that(isMobile()).then(new Click().into("sidebar menu button")),
+        new Click().into("sign out button")
+      )
+      .should(new Redirected().to("sign in page"));
   });
 
   it("should allow a visitor to sign-up, login, and logout", function () {
@@ -56,23 +75,36 @@ describe("User Sign-up and Login", function () {
     };
 
     // Sign-up User
-    cy.visit("/");
-
-    cy.getBySel("signup").click();
-    cy.getBySel("signup-title").should("be.visible").and("contain", "Sign Up");
-    cy.visualSnapshot("Sign Up Title");
-
-    cy.getBySel("signup-first-name").type(userInfo.firstName);
-    cy.getBySel("signup-last-name").type(userInfo.lastName);
-    cy.getBySel("signup-username").type(userInfo.username);
-    cy.getBySel("signup-password").type(userInfo.password);
-    cy.getBySel("signup-confirmPassword").type(userInfo.password);
-    cy.visualSnapshot("About to Sign Up");
-    cy.getBySel("signup-submit").click();
+    new Actor(cy)
+      .named(`${userInfo.firstName} ${userInfo.lastName}`)
+      .is(new Unauthenticated())
+      .attemptsTo(
+        new Visit().to("home page"),
+        new Click().into("sign up button"),
+        new Fill().the(
+          new SignUpForm()
+            .withValues({
+              firstName: userInfo.firstName,
+              lastName: userInfo.lastName,
+              username: userInfo.username,
+              password: userInfo.password,
+            })
+            .thenHitsSubmitButton()
+        )
+      );
+    // cy.getBySel("signup-title").should("be.visible").and("contain", "Sign Up");
     cy.wait("@signup");
 
     // Login User
-    cy.login(userInfo.username, userInfo.password);
+    new Actor(cy)
+      .named(`${userInfo.firstName} ${userInfo.lastName}`)
+      .is(new Unauthenticated())
+      .attemptsTo(
+        new SignIn().withCredentials({
+          username: userInfo.username,
+          password: userInfo.password,
+        })
+      );
 
     // Onboarding
     cy.getBySel("user-onboarding-dialog").should("be.visible");
