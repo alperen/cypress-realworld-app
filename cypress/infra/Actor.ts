@@ -24,7 +24,7 @@ export default class Actor {
     return this;
   }
 
-  attemptsTo(...tasks: Task[]): this {
+  attemptsTo(...tasks: Performable[]): this {
     tasks.forEach((task) =>
       task.performAs({
         cy: this.cy,

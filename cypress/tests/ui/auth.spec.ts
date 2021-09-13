@@ -10,6 +10,8 @@ import Click from "../../infra/Click";
 import Ensure from "../../infra/Ensure";
 import Fill from "../../infra/Fill";
 import SignUpForm from "../../infra/SignUpForm";
+import See from "../../infra/See";
+import CreateAccountForm from "../../infra/CreateAccountForm";
 
 const apiGraphQL = `${Cypress.env("apiUrl")}/graphql`;
 
@@ -75,51 +77,65 @@ describe("User Sign-up and Login", function () {
     };
 
     // Sign-up User
-    new Actor(cy)
+    const actorInSpotlight = new Actor(cy)
       .named(`${userInfo.firstName} ${userInfo.lastName}`)
-      .is(new Unauthenticated())
-      .attemptsTo(
-        new Visit().to("home page"),
-        new Click().into("sign up button"),
-        new Fill().the(
-          new SignUpForm()
-            .withValues({
-              firstName: userInfo.firstName,
-              lastName: userInfo.lastName,
-              username: userInfo.username,
-              password: userInfo.password,
-            })
-            .thenHitsSubmitButton()
-        )
-      );
+      .is(new Unauthenticated());
+
+    actorInSpotlight.attemptsTo(
+      new Visit().to("home page"),
+      new Click().into("sign up button"),
+      new Fill().the(
+        new SignUpForm()
+          .withValues({
+            firstName: userInfo.firstName,
+            lastName: userInfo.lastName,
+            username: userInfo.username,
+            password: userInfo.password,
+          })
+          .thenHitsSubmitButton()
+      )
+    );
     // cy.getBySel("signup-title").should("be.visible").and("contain", "Sign Up");
     cy.wait("@signup");
 
     // Login User
-    new Actor(cy)
-      .named(`${userInfo.firstName} ${userInfo.lastName}`)
-      .is(new Unauthenticated())
-      .attemptsTo(
-        new SignIn().withCredentials({
-          username: userInfo.username,
-          password: userInfo.password,
-        })
-      );
+    actorInSpotlight.attemptsTo(
+      new SignIn().withCredentials({
+        username: userInfo.username,
+        password: userInfo.password,
+      })
+    );
 
     // Onboarding
-    cy.getBySel("user-onboarding-dialog").should("be.visible");
-    cy.getBySel("list-skeleton").should("not.exist");
-    cy.getBySel("nav-top-notifications-count").should("exist");
-    cy.visualSnapshot("User Onboarding Dialog");
-    cy.getBySel("user-onboarding-next").click();
+    actorInSpotlight.should(
+      new See().the("user on boarding dialog").onTheScreen(),
+      new See().the("notification count").onTheScreen()
+    );
 
-    cy.getBySel("user-onboarding-dialog-title").should("contain", "Create Bank Account");
+    // cy.getBySel("list-skeleton").should("not.exist");
 
-    cy.getBySelLike("bankName-input").type("The Best Bank");
-    cy.getBySelLike("accountNumber-input").type("123456789");
-    cy.getBySelLike("routingNumber-input").type("987654321");
-    cy.visualSnapshot("About to complete User Onboarding");
-    cy.getBySelLike("submit").click();
+    actorInSpotlight
+      .attemptsTo(new Click().into("user onboarding modal next button"))
+      .should(
+        new See().the("user on boarding dialog title").as("Create Bank Account").onTheScreen()
+      );
+
+    actorInSpotlight
+      .attemptsTo(
+        new Fill().the(
+          new CreateAccountForm()
+            .withValues({
+              bankName: "The Best Bank",
+              accountNumber: "123456789",
+              routingNumber: "987654321",
+            })
+            .thenHitsToSubmitButton()
+        )
+      )
+      .should(
+        new See().the("user on boarding dialog title").as("Finished").onTheScreen(),
+        new See().the("user on boarding dialog content").as("You're all set!").onTheScreen()
+      );
 
     cy.wait("@gqlCreateBankAccountMutation");
 

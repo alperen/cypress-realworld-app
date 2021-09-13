@@ -1,4 +1,5 @@
 import Task from "./Task";
+import Performable from "./Performable";
 
 export default class Ensure {
   private condition = false;
@@ -9,7 +10,7 @@ export default class Ensure {
     return this;
   }
 
-  then(task: Task): Task {
+  then(task: Performable): Task {
     return new Task((ctx) => {
       if (this.condition) {
         task.performAs(ctx);
